@@ -1,20 +1,17 @@
-﻿using Microsoft.VisualStudio.Threading;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace SP_Lab5_Priority_Planning
 {
     internal class PriorityPlanningScheduler
     {
         public BindingList<Process> Processes { get; private set; }
-        public bool IsRunning { get; private set; }
         public decimal QuantumOfTime { get; set; }
-        private AsyncManualResetEvent pauseEvent;
+        private CancellationTokenSource cts;
 
         public PriorityPlanningScheduler()
         {
             Processes = new();
-            pauseEvent = new(true);
-            IsRunning = false;
+            cts = new();
         }
 
         public void AddProcesss(int priority, decimal executingTime)
@@ -42,7 +39,7 @@ namespace SP_Lab5_Priority_Planning
 
         public async Task StartAsync()
         {
-            IsRunning = true;
+            ResetStatuses();
 
             while (true)
             {
@@ -52,18 +49,31 @@ namespace SP_Lab5_Priority_Planning
                 Processes.Remove(item);
                 Processes.Insert(0, item);
 
-                await pauseEvent.WaitAsync();
-                await item.ExecuteAsync(QuantumOfTime);
+                try
+                {
+                    await item.ExecuteAsync(QuantumOfTime, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    item.Status = ProcessStatus.Interrupted;
+                    cts.Dispose();
+                    cts = new();
+                    return;
+                }
 
                 Processes.Remove(item);
                 Processes.Add(item);
             }
-
-            IsRunning = false;
         }
 
-        public void Pause() => pauseEvent.Reset();
+        public void Stop() => cts.Cancel();
 
-        public void Continue() => pauseEvent.Set();
+        private void ResetStatuses()
+        {
+            if (Processes.All(process => process.CheckCompletedStatus())) 
+            {
+                foreach (var process in Processes) process.ResetStatus();
+            }
+        }
     }
 }

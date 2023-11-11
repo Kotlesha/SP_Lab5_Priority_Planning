@@ -13,8 +13,18 @@ namespace SP_Lab5_Priority_Planning
         [DisplayName("Время выполнения(с)")]
         public decimal ExecutingTime { get; set; }
 
+        private decimal remainingTime;
+
         [DisplayName("Оставшееся время(с)")]
-        public decimal RemainingTime { get; set; }
+        public decimal RemainingTime 
+        { 
+            get => remainingTime;
+            set
+            {
+                remainingTime = value;
+                OnPropertyChanged("RemainingTime");
+            } 
+        }
 
         private string status;
 
@@ -44,13 +54,24 @@ namespace SP_Lab5_Priority_Planning
             return Convert.ToInt32(data[1]);
         }
 
-        public async Task ExecuteAsync(decimal quantumOfTime)
+        public async Task ExecuteAsync(decimal quantumOfTime, CancellationToken token, decimal step = 0.01m)
         {
             Status = ProcessStatus.Running;
             var executeTime = RemainingTime.CompareTo(quantumOfTime) > 0 ? quantumOfTime : RemainingTime;
-            await Task.Delay(TimeSpan.FromSeconds((double)executeTime));
-            RemainingTime -= executeTime;
+            
+            for (decimal time = decimal.Zero; time.CompareTo(executeTime) < 0; time += step)
+            {
+                await Task.Delay(TimeSpan.FromSeconds((double)step), token);
+                RemainingTime -= step;
+            }
+
             Status = RemainingTime.CompareTo(decimal.Zero) > 0 ? ProcessStatus.Interrupted : ProcessStatus.Completed;
+        }
+
+        public void ResetStatus()
+        {
+            Status = ProcessStatus.NotStarted;
+            RemainingTime = ExecutingTime;
         }
 
         public bool CheckCompletedStatus() => Status == ProcessStatus.Completed;

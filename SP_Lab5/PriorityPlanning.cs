@@ -1,5 +1,3 @@
-using Microsoft.VisualStudio.Threading;
-
 namespace SP_Lab5_Priority_Planning
 {
     public partial class PriorityPlanning : Form
@@ -50,21 +48,15 @@ namespace SP_Lab5_Priority_Planning
             }
 
             scheduler.QuantumOfTime = QuantumOfTime.Value;
+
             ChangeStateControl(false);
-
-            if (scheduler.IsRunning)
-            {
-                scheduler.Continue();
-                return;
-            }
-
             await scheduler.StartAsync();
             ChangeStateControl(true);
         }
 
         private void Stop_Click(object sender, EventArgs e)
         {
-            scheduler.Pause();
+            scheduler.Stop();
             ChangeStateControl(true);
         }
 
